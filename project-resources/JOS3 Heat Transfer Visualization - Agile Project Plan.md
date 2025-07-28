@@ -1,26 +1,27 @@
-# JOS3 Heat Transfer Visualization Module
+# JOS3 Heat Transfer Visualization Module UPDATED
 ## Agile Development Plan for AI Implementation
 
 **Project Duration:** 12 weeks (3 phases × 4 weeks each)  
 **Development Approach:** Agile with 2-week sprints  
-**Target:** Production-ready Python package with comprehensive visualization capabilities
+**Target:** Production-ready Python package with comprehensive visualization capabilities including conductive heat transfer
 
 ---
 
 ## 📋 Project Overview
 
 ### Success Criteria
-- ✅ Process JOS3 simulation data and generate accurate visualizations
-- ✅ Calculate external heating/cooling power requirements
+- ✅ Process JOS3 simulation data including conductive heat transfer and generate accurate visualizations
+- ✅ Calculate external heating/cooling power requirements including conductive components
 - ✅ Export publication-quality images and animations
 - ✅ Provide intuitive API for biomedical engineers
 - ✅ Achieve <5 minute processing time for 60-minute simulations
+- ✅ **NEW:** Support therapeutic cooling/heating device visualization
 
 ### Key Deliverables
 1. **Core Python Package** (`jos3_viz`)
 2. **Command Line Interface** 
-3. **Documentation & Examples**
-4. **Test Suite** with validation data
+3. **Documentation & Examples** including therapeutic device scenarios
+4. **Test Suite** with validation data including conductive heat transfer
 5. **Distribution Package** (wheel/source)
 
 ---
@@ -31,8 +32,8 @@
 
 ### Sprint Goals
 - Establish robust project foundation
-- Implement JOS3 data parsing and validation
-- Create external heat calculation engine
+- Implement JOS3 data parsing and validation including conductive parameters
+- Create external heat calculation engine with conductive support
 
 ### User Stories & Tasks
 
@@ -58,20 +59,22 @@
 ```
 
 #### Epic 1.2: JOS3 Data Integration
-**Story:** As a biomedical engineer, I need to load and parse JOS3 simulation output data
+**Story:** As a biomedical engineer, I need to load and parse JOS3 simulation output data including conductive heat transfer
 
 **Tasks:**
 ```
 1.2.1 IMPLEMENT core/data_parser.py
       - Class JOS3DataParser with methods:
         - load_data(source) # CSV file or pandas DataFrame
-        - validate_data() # Check required columns exist
+        - validate_data() # Check required columns exist including Qcond
         - get_timestep_data(time_index)
         - get_body_segments() # Return list of 17 segments
         - get_anthropometry() # Extract height, weight, etc.
+        - get_conductive_data() # NEW: Extract conductive heat parameters
         
 1.2.2 CREATE data validation system
       - Validate presence of required JOS3 columns (Tcr_, Tsk_, Qcr_, SHLsk_, etc.)
+      - NEW: Check for conductive parameters (Qcond_, MaterialTemp_, ContactArea_)
       - Check data consistency (temperature ranges, time series continuity)
       - Generate informative error messages for missing/invalid data
       
@@ -79,10 +82,11 @@
       - Create models/body_segments.py with BODY_SEGMENTS constant
       - Map JOS3 column names to standardized segment names
       - Handle variations in JOS3 output formats
+      - NEW: Map conductive heat transfer parameters
 ```
 
 #### Epic 1.3: External Heat Calculation
-**Story:** As a thermal engineer, I need to calculate external heating/cooling power requirements
+**Story:** As a thermal engineer, I need to calculate external heating/cooling power requirements including conductive contributions
 
 **Tasks:**
 ```
@@ -92,6 +96,7 @@
         - calculate_time_averaged_heat(start_time, end_time, segment)
         - get_total_body_heat(time_index)
         - validate_energy_balance()
+        - get_conductive_heat_summary() # NEW
         
 1.3.2 CREATE anthropometric scaling system
       - Implement models/scaling.py with segment mass calculations
@@ -102,12 +107,18 @@
       - Verify energy conservation: production = loss + storage + external
       - Add warnings for unrealistic heat transfer values
       - Create diagnostic reports for troubleshooting
+      
+1.3.4 IMPLEMENT conductive heat transfer integration (NEW)
+      - Add material contact parameters to calculations
+      - Implement Fourier's law validation
+      - Test against analytical solutions
+      - Add output parameters for conductive heat flow
 ```
 
 **Sprint 1 Definition of Done:**
 - [ ] Project structure created and dependencies installed
-- [ ] JOS3 data can be loaded and validated
-- [ ] External heat calculations produce correct results
+- [ ] JOS3 data can be loaded and validated including conductive parameters
+- [ ] External heat calculations produce correct results with conductive components
 - [ ] Unit tests pass for all core functionality
 - [ ] Documentation exists for all public APIs
 
@@ -119,11 +130,12 @@
 - Implement 2D heat map visualization
 - Create color mapping system
 - Build export functionality for static images
+- Add conductive heat visualization support
 
 ### User Stories & Tasks
 
 #### Epic 2.1: Color Mapping System
-**Story:** As a researcher, I need accurate color representation of temperature/heat data
+**Story:** As a researcher, I need accurate color representation of temperature/heat data including conductive heat transfer
 
 **Tasks:**
 ```
@@ -133,20 +145,23 @@
         - set_temperature_range(min_temp, max_temp, auto_scale=True)
         - generate_colorbar_legend()
         - validate_colormap_scientific_accuracy()
+        - map_conductive_heat() # NEW: Special mapping for conductive heat
         
 2.1.2 CREATE configurable color schemes
       - Support matplotlib colormaps: RdBu_r, viridis, plasma, coolwarm
       - Implement custom thermal comfort color schemes
       - Add accessibility-friendly color options (colorblind-safe)
+      - NEW: Add directional color scheme for heat flow
       
 2.1.3 IMPLEMENT dynamic range scaling
       - Auto-scale based on data min/max
       - Manual range setting with validation
       - Handle edge cases (all same temperature, extreme values)
+      - NEW: Separate scaling for conductive heat visualization
 ```
 
 #### Epic 2.2: 2D Visualization Engine
-**Story:** As a biomedical engineer, I need 2D body heat maps for quick analysis
+**Story:** As a biomedical engineer, I need 2D body heat maps showing all heat transfer mechanisms
 
 **Tasks:**
 ```
@@ -156,15 +171,18 @@
         - create_segment_layout() # Position segments in 2D space
         - add_annotations(labels, values, units)
         - apply_heat_visualization_modes()
+        - render_conductive_overlay() # NEW
         
 2.2.2 CREATE body segment layout system
       - Design 2D arrangement of 17 body segments
       - Use matplotlib patches (rectangles, circles) for segments
       - Ensure clear visual separation between segments
       - Add segment labels and temperature values
+      - NEW: Add contact area indicators
       
 2.2.3 IMPLEMENT visualization modes
       - Mode switching: conduction, convection, radiation, evaporation, blood_flow
+      - NEW: External conductive heat transfer mode
       - Composite visualization showing multiple modes
       - Time-point selection and comparison views
 ```
@@ -180,17 +198,20 @@
         - export_svg(figure, filepath) # Vector format
         - export_pdf(figure, filepath) # Publication ready
         - set_publication_styling()
+        - add_therapeutic_device_annotations() # NEW
         
 2.3.2 CREATE configuration system
       - Load YAML/JSON config files using config/config_loader.py
       - Validate configuration parameters
       - Provide sensible defaults for all options
       - Support command-line config overrides
+      - NEW: Add conductive heat display options
       
 2.3.3 IMPLEMENT batch export functionality
       - Export multiple time points automatically
       - Generate filename patterns (heat_map_030min.png)
       - Progress reporting for long export jobs
+      - NEW: Export conductive heat summaries
 ```
 
 **Sprint 2 Definition of Done:**
@@ -198,7 +219,7 @@
 - [ ] Color mapping is scientifically accurate
 - [ ] PNG/SVG exports work with publication quality
 - [ ] Configuration system loads and validates settings
-- [ ] Integration tests pass with sample JOS3 data
+- [ ] Integration tests pass with sample JOS3 data including conductive heat
 
 ---
 
@@ -210,11 +231,12 @@
 - Create 3D humanoid model with accurate anthropometric scaling
 - Implement VTK-based 3D rendering system
 - Support interactive 3D visualization
+- Add conductive heat 3D visualization
 
 ### User Stories & Tasks
 
 #### Epic 3.1: 3D Mannequin Generation
-**Story:** As a thermal engineer, I need accurate 3D human models for spatial heat analysis
+**Story:** As a thermal engineer, I need accurate 3D human models for spatial heat analysis including contact areas
 
 **Tasks:**
 ```
@@ -224,22 +246,30 @@
         - create_segment_geometry(segment_name, dimensions)
         - apply_anthropometric_scaling()
         - merge_segments_into_body()
+        - add_contact_indicators() # NEW
         
 3.1.2 CREATE 3D primitive generation
       - Head: vtk.vtkSphereSource with appropriate scaling
       - Torso segments: vtk.vtkCubeSource with rounded edges
       - Limbs: vtk.vtkCylinderSource with tapering
       - Joints: vtk.vtkSphereSource for smooth connections
+      - NEW: Contact patches for cooling/heating devices
       
 3.1.3 IMPLEMENT anthropometric scaling
       - Scale segments based on height, weight, body fat percentage
       - Use validated anthropometric equations
       - Maintain anatomical proportions and segment relationships
       - Add validation for realistic human dimensions
+      
+3.1.4 CREATE contact visualization elements (NEW)
+      - Semi-transparent overlay meshes for contact areas
+      - Adjustable opacity for contact visualization
+      - Heat flow direction arrows
+      - Device outline rendering
 ```
 
 #### Epic 3.2: VTK 3D Rendering Engine
-**Story:** As a researcher, I need interactive 3D visualization of heat transfer
+**Story:** As a researcher, I need interactive 3D visualization of heat transfer including conductive cooling/heating
 
 **Tasks:**
 ```
@@ -249,27 +279,31 @@
         - render_heat_on_model(mannequin, heat_data)
         - configure_lighting_and_camera()
         - enable_interaction(zoom, rotate, pan)
+        - render_contact_devices() # NEW
         
 3.2.2 CREATE heat mapping on 3D surfaces
       - Apply scalar data to VTK mesh surfaces
       - Use VTK lookup tables for color mapping
       - Implement smooth color interpolation across segments
       - Add transparency controls for layered visualization
+      - NEW: Special rendering for contact areas
       
 3.2.3 IMPLEMENT camera and lighting system
       - Set up optimal default viewing angles
       - Add multiple preset camera positions
       - Configure realistic lighting for 3D perception
       - Enable user interaction with VTK interactor
+      - NEW: Focus views on areas with conductive devices
 ```
 
 #### Epic 3.3: Heat Transfer Mode Visualization
-**Story:** As a physiologist, I need to visualize different heat transfer mechanisms separately
+**Story:** As a physiologist, I need to visualize different heat transfer mechanisms separately including external conductive
 
 **Tasks:**
 ```
 3.3.1 IMPLEMENT mode-specific visualizations
       - Conductive heat flow: arrows between segments showing direction/magnitude
+      - NEW: External conductive: contact patches with heat flow indicators
       - Convective heat loss: surface intensity mapping
       - Radiative exchange: environmental interaction indicators
       - Evaporative loss: skin wettedness visualization
@@ -280,12 +314,14 @@
       - Toggle individual modes on/off interactively
       - Show net heat balance as combined visualization
       - Add mode-specific legends and annotations
+      - NEW: Highlight therapeutic device contributions
       
 3.3.3 IMPLEMENT time-series playback
       - Animate heat transfer over simulation time
       - Add playback controls (play, pause, scrub)
       - Display current time and key metrics
       - Support variable playback speeds
+      - NEW: Show device on/off cycles
 ```
 
 **Sprint 3 Definition of Done:**
@@ -294,6 +330,7 @@
 - [ ] Heat data maps correctly to 3D model surfaces
 - [ ] Interactive 3D viewing (zoom, rotate, pan) functions
 - [ ] Multiple heat transfer modes display correctly
+- [ ] Conductive heat devices visualize properly
 
 ---
 
@@ -303,11 +340,12 @@
 - Implement video generation for time-series data
 - Create 3D model export capabilities
 - Build comprehensive CLI interface
+- Add therapeutic scenario support
 
 ### User Stories & Tasks
 
 #### Epic 4.1: Video Generation System
-**Story:** As a researcher, I need animations showing heat transfer evolution over time
+**Story:** As a researcher, I need animations showing heat transfer evolution over time including therapy cycles
 
 **Tasks:**
 ```
@@ -317,22 +355,25 @@
         - render_frame_at_time(time_index)
         - compile_video(frames, output_path, codec='mp4v')
         - add_progress_tracking()
+        - add_therapy_annotations() # NEW
         
 4.1.2 CREATE frame generation pipeline
       - Batch render frames for specified time range
       - Maintain consistent camera angles across frames
       - Add timestamp and metric overlays
       - Optimize rendering for speed (parallel processing where possible)
+      - NEW: Show device status indicators
       
 4.1.3 IMPLEMENT video compilation
       - Use imageio/ffmpeg for video creation
       - Support multiple formats: MP4, AVI, GIF
       - Add compression options for file size optimization
       - Include metadata (creation date, simulation parameters)
+      - NEW: Add therapy protocol timeline
 ```
 
 #### Epic 4.2: 3D Model Export
-**Story:** As an engineer, I need to export 3D models for CAD software integration
+**Story:** As an engineer, I need to export 3D models for CAD software integration and device design
 
 **Tasks:**
 ```
@@ -342,18 +383,21 @@
         - export_obj(mannequin, filepath) # General 3D software
         - export_vtk(mannequin, filepath) # VTK native format
         - include_heat_data_as_scalars()
+        - export_contact_geometry() # NEW
         
 4.2.2 CREATE CAD software compatibility
       - Ensure STL files work in SolidWorks
       - Add material properties for realistic rendering
       - Include coordinate system information
       - Test with common CAD import workflows
+      - NEW: Export cooling device placement guides
       
 4.2.3 IMPLEMENT heat data embedding
       - Embed temperature/heat flux as vertex scalars
       - Create accompanying data files for advanced analysis
       - Support time-series data export
       - Add documentation for data interpretation
+      - NEW: Include contact pressure maps
 ```
 
 #### Epic 4.3: Command Line Interface
@@ -366,18 +410,21 @@
       - Commands: visualize, calculate-heat, export-video, export-model
       - Global options: --config, --output-dir, --verbose
       - Add helpful error messages and usage examples
+      - NEW: Add therapy-specific commands
       
 4.3.2 CREATE command implementations
       - jos3-viz visualize data.csv --mode 3d --time 30
       - jos3-viz calculate-heat data.csv --segments Chest,Back
       - jos3-viz export-video data.csv --start 0 --end 180 --fps 10
       - jos3-viz export-model data.csv --format stl --time 60
+      - NEW: jos3-viz analyze-therapy data.csv --device cooling-vest
       
 4.3.3 IMPLEMENT configuration file support
       - Load settings from YAML files
       - Command-line options override config file settings
       - Provide example configuration templates
       - Validate all parameters with clear error messages
+      - NEW: Add therapy protocol configurations
 ```
 
 **Sprint 4 Definition of Done:**
@@ -386,6 +433,7 @@
 - [ ] CLI commands work for all major use cases
 - [ ] Configuration files load and override correctly
 - [ ] Performance meets targets (<5 min for 60-min simulation)
+- [ ] Therapeutic device scenarios work end-to-end
 
 ---
 
@@ -397,11 +445,12 @@
 - Implement advanced visualization features
 - Optimize performance for large datasets
 - Add comprehensive validation and testing
+- Develop therapeutic optimization tools
 
 ### User Stories & Tasks
 
 #### Epic 5.1: Advanced Visualization Features
-**Story:** As a researcher, I need sophisticated analysis tools for complex thermal studies
+**Story:** As a researcher, I need sophisticated analysis tools for complex thermal studies and therapy optimization
 
 **Tasks:**
 ```
@@ -410,18 +459,27 @@
       - Difference maps showing changes between conditions
       - Statistical analysis overlays (mean, std dev, percentiles)
       - Multi-subject comparison capabilities
+      - NEW: Compare different cooling/heating protocols
       
 5.1.2 CREATE thermal comfort indicators
       - PMV (Predicted Mean Vote) visualization
       - Local thermal sensation mapping
       - Comfort zone highlighting
       - Integration with ASHRAE comfort standards
+      - NEW: Therapeutic effectiveness metrics
       
 5.1.3 IMPLEMENT data analysis tools
       - Time-series plotting of key metrics
       - Heat balance validation reports
       - Thermal stress identification
       - Export analysis results to CSV/Excel
+      - NEW: Therapy optimization recommendations
+      
+5.1.4 DEVELOP device optimization tools (NEW)
+      - Optimal placement algorithms
+      - Power requirement calculations
+      - Cooling/heating cycle optimization
+      - Multi-zone coordination analysis
 ```
 
 #### Epic 5.2: Performance Optimization
@@ -470,6 +528,12 @@
       - Validate visualizations against known thermal scenarios
       - Test anthropometric scaling accuracy
       - Verify energy conservation principles
+      
+5.3.4 VALIDATE conductive heat transfer (NEW)
+      - Test against analytical flat plate solutions
+      - Verify Fourier's law implementation
+      - Compare with published cooling therapy data
+      - Test extreme conditions (perfect/no contact)
 ```
 
 **Sprint 5 Definition of Done:**
@@ -478,6 +542,7 @@
 - [ ] Test suite passes with >90% coverage
 - [ ] Validation against reference data confirms accuracy
 - [ ] Memory usage stays within limits for large datasets
+- [ ] Therapeutic optimization tools validated
 
 ---
 
@@ -487,6 +552,7 @@
 - Create comprehensive documentation
 - Package for distribution
 - Prepare production deployment
+- Create therapeutic device library
 
 ### User Stories & Tasks
 
@@ -506,12 +572,15 @@
       - Configuration file reference
       - CLI command reference
       - Troubleshooting guide
+      - NEW: Therapeutic device setup guide
       
 6.1.3 CREATE example notebooks
       - Jupyter notebooks showing common workflows
       - Example: "Visualizing Cooling Therapy Effects"
       - Example: "Calculating Heating Requirements"
       - Example: "Creating Publication Figures"
+      - NEW: "Optimizing Cooling Vest Design"
+      - NEW: "Comparing Therapeutic Protocols"
 ```
 
 #### Epic 6.2: Package Distribution
@@ -560,63 +629,9 @@
       - Bug report template
       - Feature request template
       - Contributing guidelines for open source
-```
-
-**Sprint 6 Definition of Done:**
-- [ ] Complete documentation published and accessible
-- [ ] Package successfully installs via pip/conda
-- [ ] Standalone executables work on target platforms
-- [ ] Production deployment procedures documented
-- [ ] All acceptance criteria met for project completion
-
----
-
-## 📊 Project Management & Quality Assurance
-
-### Agile Ceremonies
-- **Sprint Planning:** 2 hours at start of each sprint
-- **Daily Standups:** 15 minutes (or async updates for AI development)
-- **Sprint Reviews:** 1 hour at end of each sprint
-- **Retrospectives:** 30 minutes for process improvement
-
-### Definition of Ready
-- [ ] User story has clear acceptance criteria
-- [ ] Technical approach is defined
-- [ ] Dependencies are identified
-- [ ] Effort is estimated
-- [ ] Required test data is available
-
-### Definition of Done
-- [ ] Code is written and reviewed
-- [ ] Unit tests pass (>90% coverage)
-- [ ] Integration tests pass
-- [ ] Documentation is updated
-- [ ] Code follows style guidelines (Black, flake8)
-- [ ] Performance requirements are met
-
-### Risk Management
-
-#### High-Risk Items
-1. **VTK Integration Complexity**
-   - *Mitigation:* Start with simple VTK examples, escalate early if issues arise
-   
-2. **JOS3 Data Format Variations**
-   - *Mitigation:* Collect multiple example datasets, build flexible parsing
-
-3. **Performance Requirements**
-   - *Mitigation:* Implement profiling early, optimize critical paths first
-
-4. **3D Model Accuracy**
-   - *Mitigation:* Validate against published anthropometric data
-
-### Success Metrics
-- **Functionality:** All user stories completed and accepted
-- **Performance:** <5 minute processing time for 60-minute simulations
-- **Quality:** >90% test coverage, zero critical bugs
-- **Usability:** Documentation allows new users to generate visualizations within 30 minutes
-- **Adoption:** Package successfully used by target biomedical engineering teams
-
-### Delivery Schedule
-- **Week 4:** Basic 2D visualization and external heat calculation
-- **Week 8:** Full 3D visualization with video export
-- **Week 12:** Production-ready package with documentation
+      
+6.3.4 CREATE therapeutic device library (NEW)
+      - Common cooling device specifications
+      - Heating pad characteristics
+      - Contact resistance database
+      - Best practices for device modeling

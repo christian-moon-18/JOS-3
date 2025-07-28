@@ -1,31 +1,32 @@
-# Product Requirements Document (PRD)
+# Product Requirements Document (PRD) UPDATED
 ## JOS3 Heat Transfer Visualization Module
 
-**Version:** 1.0  
+**Version:** 1.1  
 **Date:** January 2025  
 **Author:** [Your Name]  
-**Status:** Draft
+**Status:** Updated with Conductive Heat Transfer
 
 ---
 
 ## 1. Executive Summary
 
-This PRD defines the requirements for developing a heat transfer visualization module for the JOS3 thermoregulation software. The module will create visual representations of heat flow through a 3D/2D humanoid model based on JOS3 simulation outputs, enabling biomedical R&D engineers to better understand thermal dynamics in human physiology.
+This PRD defines the requirements for developing a heat transfer visualization module for the JOS3 thermoregulation software. The module will create visual representations of heat flow through a 3D/2D humanoid model based on JOS3 simulation outputs, enabling biomedical R&D engineers to better understand thermal dynamics in human physiology. **This updated version includes support for conductive heat transfer simulation to model therapeutic cooling/heating devices.**
 
 ## 2. Product Overview
 
 ### 2.1 Vision Statement
-Create an intuitive, scientifically accurate visualization system that transforms JOS3's numerical heat transfer data into clear visual representations, enabling researchers to gain deeper insights into human thermoregulation processes.
+Create an intuitive, scientifically accurate visualization system that transforms JOS3's numerical heat transfer data into clear visual representations, enabling researchers to gain deeper insights into human thermoregulation processes and therapeutic thermal interventions.
 
 ### 2.2 Target Users
 - **Primary:** Biomedical R&D engineers at commercial companies
-- **Secondary:** Thermal physiology researchers, HVAC system designers
+- **Secondary:** Thermal physiology researchers, HVAC system designers, medical device developers
 
 ### 2.3 Key Benefits
 - Visual understanding of complex heat transfer mechanisms
 - Identification of thermal stress points and comfort zones
 - Enhanced communication of research findings
 - Validation of thermal management solutions
+- **NEW:** Design and optimization of therapeutic cooling/heating devices
 
 ## 3. Functional Requirements
 
@@ -44,6 +45,7 @@ Configurable display modes controlled by boolean parameters:
 
 1. **Conductive Heat Flow Mode** (`show_conduction=True`)
    - Inter-segment heat transfer
+   - **NEW:** External conductive heat transfer from contact materials
    - Color gradient showing temperature differences
    - Optional arrows showing direction of heat flow
 
@@ -90,6 +92,12 @@ Configurable display modes controlled by boolean parameters:
 - **Thermal comfort indices** visualization
 - **Time-integrated heat loss/gain**
 
+#### 3.2.3 Conductive Heat Transfer Input **NEW**
+- **Material Temperature** (°C) per body segment
+- **Contact Area Fraction** (0-1) representing percentage of segment in contact
+- **Contact Resistance** (K·m²/W) representing thermal interface properties
+- **Calculated Conductive Heat Flow** (W) as output parameter
+
 ### 3.3 Export Capabilities
 
 #### 3.3.1 Static Exports
@@ -134,7 +142,7 @@ Configurable display modes controlled by boolean parameters:
 ### 4.2 Architecture Design
 
 ```
-JOS3 Simulation Engine
+JOS3 Simulation Engine (with Conductive Heat Transfer)
         ↓
    Data Parser Module
         ↓
@@ -162,7 +170,7 @@ Visualization Controller
 ### 5.2 Compatibility
 - **Python versions:** 3.8+
 - **Operating systems:** Windows, macOS, Linux
-- **JOS3 versions:** Compatible with latest release
+- **JOS3 versions:** Compatible with latest release including conductive heat transfer
 - **CAD software:** Export formats compatible with SolidWorks
 
 ### 5.3 Scientific Accuracy
@@ -178,6 +186,7 @@ Visualization Controller
 - Single time-point rendering
 - Temperature-based coloring
 - PNG export capability
+- **NEW:** Basic conductive heat visualization
 
 ### Phase 2: 3D Enhancement
 - 3D humanoid model implementation
@@ -190,6 +199,7 @@ Visualization Controller
 - Real-time parameter adjustment
 - Comparative visualizations (multiple scenarios)
 - Integration with other thermal comfort tools
+- **NEW:** Therapeutic device optimization tools
 
 ## 7. Success Metrics
 
@@ -197,6 +207,7 @@ Visualization Controller
 - **Efficiency:** 50% reduction in time to interpret simulation results
 - **Quality:** Publication-quality figures in 90% of research outputs
 - **Performance:** All visualizations complete within target time limits
+- **NEW:** Successful validation against therapeutic cooling/heating clinical data
 
 ## 8. Example API Usage
 
@@ -204,8 +215,12 @@ Visualization Controller
 import jos3
 from jos3_visualization import HeatTransferVisualizer
 
-# Run JOS3 simulation
+# Run JOS3 simulation with conductive cooling
 model = jos3.JOS3(height=1.75, weight=70, age=30)
+# Set cooling pad on back
+model.material_temp = [np.nan]*3 + [10.0] + [np.nan]*13  # 10°C on back
+model.contact_area = [0]*3 + [0.8] + [0]*13  # 80% coverage
+model.contact_resistance = [0.01]*17  # Standard contact resistance
 # ... set conditions and run simulation ...
 
 # Create visualization
@@ -226,6 +241,7 @@ viz.export_animation("full_simulation.mp4", fps=10)
 # Get external heating/cooling data
 external_heat = viz.calculate_external_heat_sources()
 print(f"External cooling required: {external_heat['total_watts']} W")
+print(f"Conductive cooling at back: {external_heat['conductive']['Back']} W")
 ```
 
 ## 9. Open Questions
@@ -234,6 +250,7 @@ print(f"External cooling required: {external_heat['total_watts']} W")
 2. Do we need real-time data streaming from physical sensors?
 3. Should the tool support multiple human models simultaneously?
 4. Is there a need for environmental object visualization (chairs, walls, etc.)?
+5. **NEW:** Should we add optimization algorithms for therapeutic device design?
 
 ## 10. Appendices
 
@@ -260,3 +277,4 @@ print(f"External cooling required: {external_heat['total_watts']} W")
 - JOS3 Paper: Takahashi et al. (2021) - Energy & Buildings
 - VTK Documentation: https://vtk.org/
 - Thermal Comfort Visualization Standards: ASHRAE Guidelines
+- **NEW:** Therapeutic Hypothermia Guidelines: International Liaison Committee on Resuscitation (ILCOR)

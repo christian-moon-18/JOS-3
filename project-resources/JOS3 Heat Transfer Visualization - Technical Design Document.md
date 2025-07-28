@@ -1,16 +1,16 @@
-# Technical Design Document
+# Technical Design Document UPDATED
 ## JOS3 Heat Transfer Visualization Module
 
-**Version:** 1.0  
+**Version:** 1.1  
 **Date:** January 2025  
 **Author:** [Your Name]  
-**Status:** Draft
+**Status:** Updated with Conductive Heat Transfer
 
 ---
 
 ## 1. Executive Summary
 
-This technical design document outlines the implementation strategy for a heat transfer visualization module for JOS3. The module will be developed as a standalone package that interfaces with JOS3 output data, providing 3D/2D visualizations of heat transfer mechanisms in a humanoid model.
+This technical design document outlines the implementation strategy for a heat transfer visualization module for JOS3. The module will be developed as a standalone package that interfaces with JOS3 output data, providing 3D/2D visualizations of heat transfer mechanisms in a humanoid model. **This updated version includes support for visualizing conductive heat transfer from therapeutic cooling/heating devices.**
 
 ## 2. System Architecture
 
@@ -19,7 +19,7 @@ This technical design document outlines the implementation strategy for a heat t
 ```
 ┌─────────────────────┐
 │   JOS3 Simulation   │
-│      (Existing)     │
+│ (With Conductive HT)│
 └──────────┬──────────┘
            │ Output Data
            │ (.csv/.pkl)
@@ -50,7 +50,7 @@ jos3_viz/
 ├── __init__.py
 ├── core/
 │   ├── __init__.py
-│   ├── data_parser.py      # Parse JOS3 output
+│   ├── data_parser.py      # Parse JOS3 output including conductive data
 │   ├── heat_calculator.py  # Calculate external heat/cooling
 │   └── config_loader.py    # Load YAML/JSON configs
 ├── models/
@@ -77,6 +77,7 @@ jos3_viz/
 │   └── body_geometry.json
 └── examples/
     ├── basic_visualization.py
+    ├── cooling_therapy.py  # NEW
     └── sample_config.yaml
 ```
 
@@ -113,6 +114,7 @@ class JOS3DataParser:
         - Evaporation: LHLsk_[segment] (Latent Heat Loss)
         - Blood flow: BFcr_[segment], BFsk_[segment], BFms_[segment]
         - Temperatures: Tcr_[segment], Tsk_[segment]
+        - NEW - Conductive: Qcond_[segment] (Conductive Heat Transfer)
         """
 ```
 
@@ -129,16 +131,25 @@ class ExternalHeatCalculator:
         """
         Calculate instantaneous external heat/cooling power
         Returns: Power in Watts for specific segment
+        
+        NEW: Includes conductive heat transfer in calculations
         """
         # Sum all heat transfer mechanisms
-        # Q_external = Q_metabolic - (Q_conduction + Q_convection + 
-        #                            Q_radiation + Q_evaporation + Q_storage)
+        # Q_external = Q_metabolic - (Q_conduction_internal + Q_convection + 
+        #              Q_radiation + Q_evaporation + Q_storage) + Q_conductive_external
         
     def calculate_time_averaged_heat(self, start_time, end_time, body_segment):
         """Calculate time-averaged external power"""
         
     def get_total_body_heat(self, time_index):
         """Sum external heat for all body segments"""
+        
+    def get_conductive_heat_summary(self, time_index):
+        """NEW: Get summary of conductive heat transfer"""
+        conductive_heat = {}
+        for segment in self.body_segments:
+            conductive_heat[segment] = self.data[f'Qcond_{segment}'][time_index]
+        return conductive_heat
 ```
 
 ### 3.3 3D Model Generation
@@ -166,6 +177,10 @@ class MannequinGenerator:
         
     def apply_scaling(self, base_segments):
         """Scale segments based on anthropometry"""
+        
+    def add_contact_indicators(self, segments, contact_data):
+        """NEW: Add visual indicators for contact areas"""
+        # Add semi-transparent overlays where cooling/heating devices contact
 ```
 
 **Body Segment Geometry Approach:**
@@ -190,6 +205,8 @@ class HeatTransferRenderer:
         """
         Render 3D visualization
         config: Dict with show_conduction, show_convection, etc.
+        
+        NEW: Includes conductive heat transfer visualization
         """
         
     def render_2d(self, config):
@@ -197,6 +214,9 @@ class HeatTransferRenderer:
         
     def apply_heat_mapping(self, segment, heat_value):
         """Map heat value to color"""
+        
+    def render_conductive_overlay(self, segment, contact_data):
+        """NEW: Render contact area overlay with heat flow arrows"""
 ```
 
 ## 4. Implementation Details
@@ -230,11 +250,13 @@ heat_transfer:
   show_radiation: false
   show_evaporation: false
   show_blood_flow: false
+  show_conductive_external: true  # NEW
   
 appearance:
   colormap: "RdBu_r"
   temperature_range: "auto"  # or [min, max]
   opacity: 0.8
+  contact_overlay_opacity: 0.5  # NEW
   
 export:
   format: ["png", "mp4"]
@@ -244,6 +266,7 @@ export:
 calculation:
   external_heat_segments: ["all"]  # or specific list
   time_averaging_window: 60  # minutes
+  include_conductive: true  # NEW
 ```
 
 ### 4.3 Command-Line Interface
@@ -258,8 +281,11 @@ jos3-viz simulate_output.csv --time 30 --output heat_map_30min.png
 # Generate video
 jos3-viz simulate_output.csv --video --start 0 --end 180 --fps 10
 
-# Calculate external heat
-jos3-viz simulate_output.csv --calc-external-heat --segments "Chest,Back"
+# Calculate external heat including conductive
+jos3-viz simulate_output.csv --calc-external-heat --segments "Chest,Back" --include-conductive
+
+# Visualize cooling therapy scenario (NEW)
+jos3-viz cooling_therapy_output.csv --highlight-conductive --output therapy_visualization.png
 ```
 
 ### 4.4 Data Processing Pipeline
@@ -282,10 +308,13 @@ def visualization_pipeline(jos3_output, config):
     # 4. Calculate heat transfer
     heat_calc = ExternalHeatCalculator(data)
     
-    # 5. Render visualization
+    # 5. Extract conductive heat data (NEW)
+    conductive_data = parser.get_conductive_heat_data()
+    
+    # 6. Render visualization
     renderer = HeatTransferRenderer(body_model, data)
     
-    # 6. Process each time point
+    # 7. Process each time point
     for time_point in config['time_points']:
         heat_data = heat_calc.calculate_instantaneous_heat(time_point)
         
@@ -294,7 +323,7 @@ def visualization_pipeline(jos3_output, config):
         else:
             scene = renderer.render_2d(heat_data, config)
             
-        # 7. Export
+        # 8. Export
         export_frame(scene, time_point, config)
 ```
 
@@ -305,17 +334,18 @@ def visualization_pipeline(jos3_output, config):
 For each body segment at time t:
 
 ```
-Q_external = Q_metabolic - (Q_stored + Q_conduction + Q_convection + 
-                           Q_radiation + Q_evaporation + Q_respiration)
+Q_external = Q_metabolic - (Q_stored + Q_conduction_internal + Q_convection + 
+             Q_radiation + Q_evaporation + Q_respiration) + Q_conductive_external
 
 Where:
 - Q_metabolic: Metabolic heat production
 - Q_stored: Rate of heat storage (m*c*dT/dt)
-- Q_conduction: Inter-segment conductive heat transfer
+- Q_conduction_internal: Inter-segment conductive heat transfer
 - Q_convection: Convective heat loss to environment
 - Q_radiation: Radiative heat exchange
 - Q_evaporation: Evaporative heat loss (sweating)
 - Q_respiration: Respiratory heat loss
+- Q_conductive_external: NEW - External conductive heat transfer
 ```
 
 ### 5.2 JOS3 Parameter Mapping
@@ -337,6 +367,10 @@ For each body segment (suffix: _Head, _Neck, _Chest, etc.):
 - `BFms`: Muscle blood flow [L/h]
 - `Esk`: Evaporative heat loss at skin [W]
 - `Esweat`: Evaporative heat loss by sweating only [W]
+- **NEW** `Qcond`: Conductive heat transfer at skin [W]
+- **NEW** `MaterialTemp`: Contact material temperature [°C]
+- **NEW** `ContactArea`: Contact area fraction [-]
+- **NEW** `ContactResistance`: Thermal contact resistance [m²·K/W]
 
 Whole body parameters:
 - `RES`: Total respiratory heat loss [W]
@@ -374,6 +408,11 @@ def calculate_external_heat_segment(segment_data, segment_name, time_index, dt=6
     q_sensible = segment_data[f'SHLsk_{segment_name}'][time_index]  # Convection + Radiation
     q_latent = segment_data[f'LHLsk_{segment_name}'][time_index]    # Evaporation
     
+    # NEW: Get conductive heat transfer
+    q_conductive = 0
+    if f'Qcond_{segment_name}' in segment_data.columns:
+        q_conductive = segment_data[f'Qcond_{segment_name}'][time_index]
+    
     # Calculate heat storage rate
     if time_index > 0:
         # Core temperature change
@@ -402,7 +441,8 @@ def calculate_external_heat_segment(segment_data, segment_name, time_index, dt=6
     q_resp = segment_data['RES'][time_index] * (q_met / total_met)
     
     # External heat required (positive = heating, negative = cooling)
-    q_external = q_met - (q_stored + q_sensible + q_latent + q_resp)
+    # NOW INCLUDING conductive heat transfer
+    q_external = q_met - (q_stored + q_sensible + q_latent + q_resp) + q_conductive
     
     return q_external
 
@@ -416,6 +456,7 @@ def calculate_total_external_heat(jos3_data, time_index):
     - total_heat: total for whole body
     - heating_segments: list of segments needing heating
     - cooling_segments: list of segments needing cooling
+    - conductive_heat: dict of conductive heat transfer per segment (NEW)
     """
     segments = ['Head', 'Neck', 'Chest', 'Back', 'Pelvis', 
                 'LShoulder', 'LArm', 'LHand', 'RShoulder', 'RArm', 'RHand',
@@ -425,13 +466,20 @@ def calculate_total_external_heat(jos3_data, time_index):
         'segment_heat': {},
         'total_heat': 0,
         'heating_segments': [],
-        'cooling_segments': []
+        'cooling_segments': [],
+        'conductive_heat': {}  # NEW
     }
     
     for segment in segments:
         q_ext = calculate_external_heat_segment(jos3_data, segment, time_index)
         results['segment_heat'][segment] = q_ext
         results['total_heat'] += q_ext
+        
+        # NEW: Extract conductive component
+        if f'Qcond_{segment}' in jos3_data.columns:
+            results['conductive_heat'][segment] = jos3_data[f'Qcond_{segment}'][time_index]
+        else:
+            results['conductive_heat'][segment] = 0
         
         if q_ext > 0:
             results['heating_segments'].append(segment)
@@ -485,11 +533,12 @@ Q_metabolic = Qcr + Qsk + Qms + Qfat
 
 #### 7.3.2 Heat Losses
 ```python
-Q_loss_total = SHLsk + LHLsk + Q_respiratory_distributed
+Q_loss_total = SHLsk + LHLsk + Q_respiratory_distributed - Qcond
 ```
 - `SHLsk`: Sensible heat loss (convection + radiation combined)
 - `LHLsk`: Latent heat loss (evaporation)
 - `Q_respiratory_distributed`: Portion of total respiratory loss
+- `Qcond`: **NEW** - Conductive heat transfer (negative for cooling, positive for heating)
 
 #### 7.3.3 Heat Storage Rate
 ```python
@@ -536,20 +585,29 @@ def calculate_time_averaged_external_heat(jos3_data, start_time, end_time, segme
     - average_power: Average power in Watts
     - total_energy: Total energy in Joules
     - peak_power: Maximum instantaneous power
+    - conductive_contribution: Average conductive heat transfer (NEW)
     """
     powers = []
+    conductive_powers = []  # NEW
+    
     for t in range(start_time, end_time):
         q_ext = calculate_external_heat_segment(jos3_data, segment, t)
         powers.append(q_ext)
+        
+        # NEW: Track conductive component
+        if f'Qcond_{segment}' in jos3_data.columns:
+            conductive_powers.append(jos3_data[f'Qcond_{segment}'][t])
     
     average_power = np.mean(powers)
     total_energy = np.sum(powers) * 60  # Assuming 60s time steps
     peak_power = np.max(np.abs(powers))
+    conductive_contribution = np.mean(conductive_powers) if conductive_powers else 0
     
     return {
         'average_power': average_power,
         'total_energy': total_energy,
-        'peak_power': peak_power
+        'peak_power': peak_power,
+        'conductive_contribution': conductive_contribution  # NEW
     }
 ```
 
@@ -558,6 +616,7 @@ def calculate_time_averaged_external_heat(jos3_data, start_time, end_time, segme
 1. **Energy Conservation**: Total body heat production should equal total heat loss + storage
 2. **Steady State**: At steady state, storage rate should approach zero
 3. **Physical Limits**: External cooling/heating should be within realistic bounds
+4. **Conductive Validation**: Conductive heat transfer should follow Fourier's law
 
 ### 7.7 Output Format
 
@@ -567,28 +626,32 @@ The external heat calculator will provide:
 - Total energy transfer over simulation period [J]
 - Identification of critical segments requiring most cooling/heating
 - Temporal profiles showing when cooling/heating is most needed
-
-## 8. Development Roadmap
+- **NEW**: Conductive heat transfer per segment [W]
+- **NEW**: Material contact temperature [°C]
+- **NEW**: Contact area fraction [-]
+- **NEW**: Thermal contact resistance [K·m²/W]
 
 ## 8. Development Roadmap
 
 ### Phase 1: Core Implementation (Weeks 1-4)
 - [ ] Set up project structure and dependencies
-- [ ] Implement data parser for JOS3 output
+- [ ] Implement data parser for JOS3 output including conductive data
 - [ ] Create basic 2D visualization with matplotlib
-- [ ] Implement external heat calculation
+- [ ] Implement external heat calculation with conductive component
 
 ### Phase 2: 3D Visualization (Weeks 5-8)
 - [ ] Develop 3D mannequin generator
 - [ ] Implement VTK-based 3D renderer
 - [ ] Add heat mapping to 3D model
 - [ ] Create export functionality
+- [ ] Add contact area visualization for conductive cooling/heating
 
 ### Phase 3: Full Feature Set (Weeks 9-12)
 - [ ] Implement all heat transfer visualization modes
 - [ ] Add video generation capability
 - [ ] Create comprehensive CLI
 - [ ] Write documentation and examples
+- [ ] Develop therapeutic device optimization tools
 
 ## 9. Testing Strategy
 
@@ -596,11 +659,13 @@ The external heat calculator will provide:
 - Compare calculated external heat with known scenarios
 - Verify visualization accuracy against reference data
 - Test anthropometric scaling accuracy
+- **NEW**: Validate conductive heat transfer against analytical solutions
 
 ### 9.2 Integration Tests
 - Test compatibility with various JOS3 output formats
 - Verify export file compatibility (SolidWorks, etc.)
 - Test configuration file parsing
+- **NEW**: Test with JOS3 conductive heat transfer outputs
 
 ### 9.3 Performance Tests
 - Benchmark processing time for various simulation sizes
@@ -629,6 +694,8 @@ pip install -e .
 - VR/AR support for immersive analysis
 - Machine learning-based heat pattern analysis
 - Integration with thermal imaging data
+- **NEW**: Optimization algorithms for therapeutic device design
+- **NEW**: Database of common cooling/heating device properties
 
 ## Appendices
 
@@ -653,6 +720,15 @@ cooling_power = viz.calculate_external_heat(
     time_range=(0, 1440)
 )
 print(f"Average cooling power required: {cooling_power['average']} W")
+print(f"Conductive cooling contribution: {cooling_power['conductive_contribution']} W")
+
+# Scenario 2: Compare cooling methods
+# Load simulations with different cooling approaches
+viz_conductive = visualize_heat_transfer('conductive_cooling.csv')
+viz_convective = visualize_heat_transfer('convective_cooling.csv')
+
+# Generate comparison visualization
+viz_conductive.compare_with(viz_convective, output='cooling_comparison.png')
 ```
 
 ### B. Configuration Templates
@@ -662,3 +738,5 @@ Available in `jos3_viz/config/templates/`
 - `heating_assessment.yaml`
 - `exercise_recovery.yaml`
 - `publication_figures.yaml`
+- **NEW**: `conductive_cooling_device.yaml`
+- **NEW**: `therapeutic_hypothermia.yaml`
