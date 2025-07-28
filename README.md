@@ -49,10 +49,96 @@ cooling_power_chest = results['QcondChest'][-1]  # Watts
 print(f"Chest cooling power: {cooling_power_chest:.1f}W")
 ```
 
-The feature adds three new parameters:
-- `material_temp`: Temperature of contact material [°C] (use `np.nan` for no contact)
-- `contact_area`: Fraction of body surface in contact [0-1]  
-- `contact_resistance`: Thermal resistance of contact interface [K·m²/W]
+### Parameters
+
+The feature adds three new parameters that can be set for each of the 17 body segments:
+
+| Parameter | Description | Units | Range | Default |
+|-----------|-------------|--------|-------|---------|
+| `material_temp` | Temperature of contact material | °C | -273.15 to 100°C, or `np.nan` | `np.nan` (no contact) |
+| `contact_area` | Fraction of body surface in contact | - | 0.0 to 1.0 | 0.0 (no contact) |
+| `contact_resistance` | Thermal resistance of contact interface | K·m²/W | 0.001 to 1.0 | 0.01 |
+
+### Output Parameters
+
+The model outputs the following new parameters for each body segment:
+
+- `Qcond[Segment]`: Conductive heat transfer rate [W] (positive = heating, negative = cooling)
+- `MaterialTemp[Segment]`: Material temperature [°C]
+- `ContactArea[Segment]`: Contact area fraction [-]
+- `ContactResistance[Segment]`: Contact thermal resistance [K·m²/W]
+
+### Body Segments
+
+The 17 body segments are:
+`Head`, `Neck`, `Chest`, `Back`, `Pelvis`, `LShoulder`, `LArm`, `LHand`, `RShoulder`, `RArm`, `RHand`, `LThigh`, `LLeg`, `LFoot`, `RThigh`, `RLeg`, `RFoot`
+
+### Additional Examples
+
+#### Heating Pad Application
+```python
+# Apply heating pad to lower back for pain relief
+model.material_temp = [float('nan')] * 17
+model.material_temp[3] = 42  # 42°C heating pad on back
+model.contact_area = [0] * 17
+model.contact_area[3] = 0.5  # 50% back coverage
+model.contact_resistance = 0.02  # Typical heating pad resistance
+```
+
+#### Vehicle Seat Cooling
+```python
+# Simulate air-conditioned car seat
+model.material_temp = [float('nan')] * 17
+model.material_temp[3] = 25   # 25°C cooled seat back
+model.material_temp[4] = 25   # 25°C cooled seat bottom (pelvis)
+model.contact_area = [0] * 17
+model.contact_area[3] = 0.8   # 80% back contact
+model.contact_area[4] = 0.9   # 90% pelvis contact
+model.contact_resistance = 0.05  # Seat material resistance
+```
+
+#### Selective Segment Cooling
+```python
+import numpy as np
+
+# Cool only specific segments (e.g., hands and feet)
+temps = np.full(17, np.nan)
+areas = np.zeros(17)
+
+# Cool hands and feet for hypothermia treatment
+hand_foot_indices = [7, 8, 10, 11, 13, 14, 16, 17]  # LHand, RHand, LFoot, RFoot etc.
+for i in hand_foot_indices:
+    if i < 17:  # Safety check
+        temps[i] = 15      # 15°C cooling
+        areas[i] = 0.6     # 60% coverage
+
+model.material_temp = temps
+model.contact_area = areas
+model.contact_resistance = 0.01
+```
+
+### Heat Transfer Calculation
+
+The conductive heat transfer is calculated using:
+
+```
+Q_conductive = (T_material - T_skin) × BSA × contact_area / contact_resistance
+```
+
+Where:
+- `Q_conductive`: Heat transfer rate [W] (positive = into body, negative = out of body)
+- `T_material`: Material temperature [°C]
+- `T_skin`: Local skin temperature [°C]
+- `BSA`: Body surface area of the segment [m²]
+- `contact_area`: Fraction of segment surface in contact [-]
+- `contact_resistance`: Thermal resistance of the interface [K·m²/W]
+
+### Validation and Safety
+
+- **Parameter validation**: All parameters are validated to ensure they're within physically realistic ranges
+- **Backward compatibility**: Models without conductive parameters behave exactly as before
+- **Energy conservation**: The heat balance equations properly account for conductive heat transfer
+- **No contact handling**: Use `np.nan` for `material_temp` to indicate no thermal contact
 
 Please cite us if you use this package and describe which version you used:
 Y. Takahashi, A. Nomoto, S. Yoda, R. Hisayama, M. Ogata, Y. Ozeki, S. Tanabe,
