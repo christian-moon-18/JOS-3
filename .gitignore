@@ -8,4 +8,5 @@ jos3.egg-info/
 test.py
 /archive
 /.claude
-.CLAUDE.md
+CLAUDE.md
+project-resources
