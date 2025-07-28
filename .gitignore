@@ -6,3 +6,6 @@ jos3.egg-info/
 .eggs/
 *.csv
 test.py
+/archive
+/.claude
+.CLAUDE.md
