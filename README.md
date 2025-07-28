@@ -191,15 +191,131 @@ https://pythermalcomfort.readthedocs.io/
 
 # Installation
 
-You can install the model with:
+## Version Comparison
+
+| Feature | Original JOS-3 (PyPI) | Enhanced JOS-3 (Source) |
+|---------|----------------------|-------------------------|
+| **Installation** | `pip install jos3` | Install from source |
+| **Basic thermoregulation** | ✅ | ✅ |
+| **17 body segments** | ✅ | ✅ |  
+| **Environmental conditions** | ✅ | ✅ |
+| **Conductive heat transfer** | ❌ | ✅ |
+| **Cooling/heating therapy** | ❌ | ✅ |
+| **Contact surface modeling** | ❌ | ✅ |
+| **Material interface analysis** | ❌ | ✅ |
+
+## Option 1: Original JOS-3 (PyPI Package)
+
+The original JOS-3 model without conductive heat transfer is available via pip:
+
 ```bash
 pip install jos3
 ```
 
-If you have not installed numpy in your environment, please do so with:
+**Use this if:** You need the standard JOS-3 thermoregulation model for basic thermal comfort analysis.
+
+## Option 2: Enhanced JOS-3 with Conductive Heat Transfer (Source)
+
+To use the enhanced version with conductive heat transfer capabilities, install from source:
+
+**Use this if:** You need to simulate cooling/heating therapy, contact with surfaces, or any application involving conductive heat transfer.
+
+### Prerequisites
+
+- Python 3.8 or higher
+- Git (for cloning the repository)
+
+### Installation Steps
+
+1. **Clone the repository:**
+   ```bash
+   git clone <repository-url>
+   cd JOS-3
+   ```
+
+2. **Create a virtual environment (recommended):**
+   ```bash
+   python -m venv jos3_env
+   
+   # On Windows:
+   jos3_env\Scripts\activate
+   
+   # On macOS/Linux:
+   source jos3_env/bin/activate
+   ```
+
+3. **Install dependencies:**
+   ```bash
+   pip install numpy pandas matplotlib
+   ```
+
+4. **Install the package in development mode:**
+   ```bash
+   pip install -e .
+   ```
+
+   Or install directly from the source directory:
+   ```bash
+   python setup.py develop
+   ```
+
+### Alternative: Direct Usage Without Installation
+
+You can also run the enhanced JOS-3 directly from the source code:
+
+1. **Clone and navigate to the directory:**
+   ```bash
+   git clone <repository-url>
+   cd JOS-3
+   ```
+
+2. **Install required dependencies:**
+   ```bash
+   pip install numpy pandas matplotlib
+   ```
+
+3. **Use in your Python scripts:**
+   ```python
+   import sys
+   import os
+   sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+   
+   import jos3
+   
+   # Now you can use all features including conductive heat transfer
+   model = jos3.JOS3(ex_output="all")
+   model.material_temp = 20  # This feature only available in enhanced version
+   ```
+
+### Verification
+
+Test your installation by running the example:
 
 ```bash
-pip install numpy
+python example_cooling_therapy.py
+```
+
+Or run the test suite:
+
+```bash
+python test_conductive.py
+```
+
+### Dependencies
+
+The enhanced version requires:
+
+```
+numpy>=1.21.0
+pandas>=1.3.0
+matplotlib>=3.4.0
+```
+
+Optional for advanced features:
+```
+vtk>=9.0.0          # For 3D visualization
+imageio>=2.9.0      # For video export
+trimesh>=3.9.0      # For 3D geometry
 ```
 
 # Example
