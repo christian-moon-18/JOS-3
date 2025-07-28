@@ -8,6 +8,52 @@ This model was developed at [Shin-ichi Tanabe Laboratory, Waseda University](htt
 and was derived from [65 Multi-Node model](https://doi.org/10.1016/S0378-7788(02)00014-2)
 and [JOS-2 model](https://doi.org/10.1016/j.buildenv.2013.04.013).
 
+## New Feature: Conductive Heat Transfer
+
+JOS-3 now includes **conductive heat transfer** capabilities for simulating thermal contact with external materials such as cooling/heating pads, blankets, or surfaces. This feature enables:
+
+- **Therapeutic cooling/heating simulations** - Model medical cooling devices, heating pads, and thermal therapy applications
+- **Contact surface modeling** - Simulate heat transfer with chairs, beds, vehicle seats, and other contact surfaces  
+- **Material interface analysis** - Study heat exchange with clothing, protective equipment, and thermal management systems
+
+### Usage Example
+
+```python
+import jos3
+
+# Create model
+model = jos3.JOS3(ex_output="all")
+
+# Set environmental conditions
+model.Ta = 35  # Hot environment
+model.RH = 60
+model.Va = 0.1
+
+# Apply cooling pad to chest and back
+model.material_temp = [float('nan')] * 17  # No contact by default
+model.material_temp[2] = 20  # 20°C cooling pad on chest  
+model.material_temp[3] = 20  # 20°C cooling pad on back
+
+model.contact_area = [0] * 17       # No contact by default
+model.contact_area[2] = 0.7         # 70% chest coverage
+model.contact_area[3] = 0.7         # 70% back coverage
+
+model.contact_resistance = 0.01     # Good thermal contact
+
+# Run simulation
+model.simulate(times=20)
+
+# Get cooling power
+results = model.dict_results()
+cooling_power_chest = results['QcondChest'][-1]  # Watts
+print(f"Chest cooling power: {cooling_power_chest:.1f}W")
+```
+
+The feature adds three new parameters:
+- `material_temp`: Temperature of contact material [°C] (use `np.nan` for no contact)
+- `contact_area`: Fraction of body surface in contact [0-1]  
+- `contact_resistance`: Thermal resistance of contact interface [K·m²/W]
+
 Please cite us if you use this package and describe which version you used:
 Y. Takahashi, A. Nomoto, S. Yoda, R. Hisayama, M. Ogata, Y. Ozeki, S. Tanabe,
 Thermoregulation Model JOS-3 with New Open Source Code, Energy & Buildings (2020),

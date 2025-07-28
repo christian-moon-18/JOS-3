@@ -310,6 +310,26 @@ ALL_OUT_PARAMS = {
             'suffix': None,
             'unit': 'g/sec'},
 
+    'Qcond': {'ex_output': True,
+              'meaning': 'Conductive heat transfer rate of the body part',
+              'suffix': 'Body name',
+              'unit': 'W'},
+
+    'MaterialTemp': {'ex_output': True,
+                     'meaning': 'Material temperature for conductive heat transfer of the body part',
+                     'suffix': 'Body name',
+                     'unit': 'oC'},
+
+    'ContactArea': {'ex_output': True,
+                    'meaning': 'Contact area fraction for conductive heat transfer of the body part',
+                    'suffix': 'Body name',
+                    'unit': '-'},
+
+    'ContactResistance': {'ex_output': True,
+                          'meaning': 'Contact thermal resistance for conductive heat transfer of the body part',
+                          'suffix': 'Body name',
+                          'unit': 'K.m2/W'},
+
     'dt': {'ex_output': False,
         'meaning': 'Time delta of the model',
         'suffix': None,

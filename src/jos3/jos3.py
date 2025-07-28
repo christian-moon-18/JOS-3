@@ -240,9 +240,21 @@ class JOS3():
         self._cycle = 0 # Cycle time
         self._atmospheric_pressure = 101.33  # kPa. Used to fix the hc, he values
 
+        # Add instance variables for conductive heat transfer
+        self._conductive_heat = np.zeros(17)  # [W]
+        self._material_temp = np.ones(17) * np.nan  # [°C]
+        self._contact_area = np.zeros(17)  # [0-1]
+        self._contact_resistance = np.ones(17) * 0.01  # [K.m²/W]
+
         # Reset setpoint temperature
         dictout = self._reset_setpt()
         self._history.append(dictout)  # Save the last model parameters
+        
+        # Re-initialize conductive variables after reset (they may have been affected)
+        self._conductive_heat = np.zeros(17)  # [W]
+        self._material_temp = np.ones(17) * np.nan  # [°C]
+        self._contact_area = np.zeros(17)  # [0-1]
+        self._contact_resistance = np.ones(17) * 0.01  # [K.m²/W]
 
 
     def _reset_setpt(self):
@@ -417,6 +429,14 @@ class JOS3():
         # Sensible heat loss [W]
         shlsk = (tsk - to) / r_t * self._bsa
 
+        # Calculate conductive heat transfer [W]
+        cond_ht = np.zeros(17)
+        mask = ~np.isnan(self._material_temp)
+        if np.any(mask):
+            cond_ht[mask] = ((self._material_temp[mask] - tsk[mask]) * 
+                             self._bsa[mask] * self._contact_area[mask] / 
+                             self._contact_resistance[mask])
+
         # Cardiac output [L/h]
         co = threg.sum_bf(
                 bf_cr, bf_ms, bf_fat, bf_sk, bf_ava_hand, bf_ava_foot)
@@ -478,6 +498,9 @@ class JOS3():
 
         # Sweating [W]
         arrQ[INDEX["skin"]] -= e_sk
+
+        # Conductive heat transfer [W]
+        arrQ[INDEX["skin"]] += cond_ht
 
         # Extra heat gain [W]
         arrQ += self.ex_q.copy()
@@ -563,6 +586,10 @@ class JOS3():
             detailout["Qms"] = qms[VINDEX["muscle"]]
             detailout["Qfat"] = qfat[VINDEX["fat"]]
             detailout["Qsk"] = qsk
+            detailout["Qcond"] = cond_ht
+            detailout["MaterialTemp"] = self._material_temp.copy()
+            detailout["ContactArea"] = self._contact_area.copy()
+            detailout["ContactResistance"] = self._contact_resistance.copy()
             dictout["SHLsk"] = shlsk
             dictout["LHLsk"] = e_sk
             dictout["RESsh"] = res_sh
@@ -894,6 +921,90 @@ class JOS3():
     @bodytemp.setter
     def bodytemp(self, inp):
         self._bodytemp = inp.copy()
+
+    @property
+    def material_temp(self):
+        """
+        Getter
+        
+        Returns
+        -------
+        material_temp : numpy.ndarray (17,)
+            Material temperature for conductive heat transfer [°C].
+            Set to np.nan for segments with no contact.
+        """
+        return self._material_temp
+    @material_temp.setter
+    def material_temp(self, inp):
+        """
+        Setter for material temperature
+        
+        Parameters
+        ----------
+        inp : float, int, array-like
+            Material temperature [°C]. Range: -273.15 to 100°C or np.nan.
+            If single value, applied to all segments.
+            If array, must be length 17.
+        """
+        self._material_temp = _to17array(inp)
+
+    @property
+    def contact_area(self):
+        """
+        Getter
+        
+        Returns
+        -------
+        contact_area : numpy.ndarray (17,)
+            Contact area fraction for conductive heat transfer [0-1].
+        """
+        return self._contact_area
+    @contact_area.setter
+    def contact_area(self, inp):
+        """
+        Setter for contact area fraction
+        
+        Parameters
+        ----------
+        inp : float, int, array-like
+            Contact area fraction [0-1]. Range: 0 to 1.
+            If single value, applied to all segments.
+            If array, must be length 17.
+        """
+        inp_array = _to17array(inp)
+        # Validate range
+        if np.any((inp_array < 0) | (inp_array > 1)):
+            raise ValueError("Contact area must be between 0 and 1")
+        self._contact_area = inp_array
+
+    @property
+    def contact_resistance(self):
+        """
+        Getter
+        
+        Returns
+        -------
+        contact_resistance : numpy.ndarray (17,)
+            Contact thermal resistance [K·m²/W].
+        """
+        return self._contact_resistance
+    @contact_resistance.setter
+    def contact_resistance(self, inp):
+        """
+        Setter for contact thermal resistance
+        
+        Parameters
+        ----------
+        inp : float, int, array-like
+            Contact thermal resistance [K·m²/W]. Range: 0.001 to 1.0.
+            If single value, applied to all segments.
+            If array, must be length 17.
+        """
+        inp_array = _to17array(inp)
+        # Validate range
+        if np.any((inp_array < 0.001) | (inp_array > 1.0)):
+            raise ValueError("Contact resistance must be between 0.001 and 1.0 K·m²/W")
+        self._contact_resistance = inp_array
 
     #--------------------------------------------------------------------------
     # Getter
