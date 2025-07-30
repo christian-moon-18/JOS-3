@@ -1,7 +1,9 @@
 """
-Configuration file handling
+Configuration system for JOS3 Heat Transfer Visualization
 
-Implements: TDD Section 4.2 - Configuration File Format
+Implements: TDD Section 4.3 - Configuration Management
 """
 
-__all__ = []
+from .config_loader import ConfigurationLoader, load_config_file, create_default_config, validate_config_dict
+
+__all__ = ['ConfigurationLoader', 'load_config_file', 'create_default_config', 'validate_config_dict']

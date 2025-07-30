@@ -85,8 +85,8 @@ class ExternalHeatCalculator:
             q_met = self._get_metabolic_heat(timestep_data, body_segment)
             
             # 2. Calculate heat losses (already computed by JOS3)
-            q_sensible = timestep_data.get(f'SHLsk_{body_segment}', 0.0)  # Convection + Radiation
-            q_latent = timestep_data.get(f'LHLsk_{body_segment}', 0.0)    # Evaporation
+            q_sensible = timestep_data.get(f'SHLsk{body_segment}', 0.0)  # Convection + Radiation
+            q_latent = timestep_data.get(f'LHLsk{body_segment}', 0.0)    # Evaporation
             
             # 3. Calculate heat storage rate
             q_stored = self._calculate_heat_storage_rate(time_index, body_segment)
@@ -94,14 +94,17 @@ class ExternalHeatCalculator:
             # 4. Calculate respiratory heat loss (distributed across segments)
             q_resp = self._calculate_respiratory_loss_distributed(timestep_data, body_segment, q_met)
             
-            # 5. External heat required (heat balance equation)
-            # Q_external = Q_metabolic - (Q_stored + Q_sensible + Q_latent + Q_respiratory)
-            q_external = q_met - (q_stored + q_sensible + q_latent + q_resp)
+            # 5. Get conductive heat transfer (if available) - NEW
+            q_conductive = timestep_data.get(f'Qcond{body_segment}', 0.0)
+            
+            # 6. External heat required (heat balance equation) - UPDATED
+            # Q_external = Q_metabolic - (Q_stored + Q_sensible + Q_latent + Q_respiratory + Q_conductive)
+            q_external = q_met - (q_stored + q_sensible + q_latent + q_resp + q_conductive)
             
             logger.debug(f"Heat calculation for {body_segment} at t={time_index}: "
                         f"Met={q_met:.2f}W, Stored={q_stored:.2f}W, "
                         f"Sensible={q_sensible:.2f}W, Latent={q_latent:.2f}W, "
-                        f"Resp={q_resp:.2f}W, External={q_external:.2f}W")
+                        f"Resp={q_resp:.2f}W, Conductive={q_conductive:.2f}W, External={q_external:.2f}W")
             
             return float(q_external)
             
@@ -115,18 +118,18 @@ class ExternalHeatCalculator:
         q_met = 0.0
         
         # Core heat production (always present)
-        q_met += timestep_data.get(f'Qcr_{segment}', 0.0)
+        q_met += timestep_data.get(f'Qcr{segment}', 0.0)
         
         # Skin heat production (always present)
-        q_met += timestep_data.get(f'Qsk_{segment}', 0.0)
+        q_met += timestep_data.get(f'Qsk{segment}', 0.0)
         
         # Muscle heat production (if present)
-        if f'Qms_{segment}' in timestep_data.index:
-            q_met += timestep_data.get(f'Qms_{segment}', 0.0)
+        if f'Qms{segment}' in timestep_data.index:
+            q_met += timestep_data.get(f'Qms{segment}', 0.0)
         
         # Fat heat production (if present)
-        if f'Qfat_{segment}' in timestep_data.index:
-            q_met += timestep_data.get(f'Qfat_{segment}', 0.0)
+        if f'Qfat{segment}' in timestep_data.index:
+            q_met += timestep_data.get(f'Qfat{segment}', 0.0)
         
         return q_met
     
@@ -154,8 +157,8 @@ class ExternalHeatCalculator:
                 prev_data = self.parser.get_timestep_data(time_points[current_idx - 1])
             
             # Temperature changes
-            dTcr = current_data.get(f'Tcr_{segment}', 37.0) - prev_data.get(f'Tcr_{segment}', 37.0)
-            dTsk = current_data.get(f'Tsk_{segment}', 34.0) - prev_data.get(f'Tsk_{segment}', 34.0)
+            dTcr = current_data.get(f'Tcr{segment}', 37.0) - prev_data.get(f'Tcr{segment}', 37.0)
+            dTsk = current_data.get(f'Tsk{segment}', 34.0) - prev_data.get(f'Tsk{segment}', 34.0)
             
             # Get segment mass and specific heat
             segment_mass = get_segment_mass(segment, self.anthropometry.get('weight', 70.0))
@@ -311,8 +314,8 @@ class ExternalHeatCalculator:
             total_metabolic = timestep_data.get('Met', 0.0)
             
             # Total heat losses
-            total_sensible = sum(timestep_data.get(f'SHLsk_{seg}', 0.0) for seg in self.segments)
-            total_latent = sum(timestep_data.get(f'LHLsk_{seg}', 0.0) for seg in self.segments)
+            total_sensible = sum(timestep_data.get(f'SHLsk{seg}', 0.0) for seg in self.segments)
+            total_latent = sum(timestep_data.get(f'LHLsk{seg}', 0.0) for seg in self.segments)
             total_respiratory = timestep_data.get('RES', 0.0)
             
             # Calculate total heat storage rate
@@ -417,3 +420,84 @@ class ExternalHeatCalculator:
             summary['whole_body']['average_net'] = sum(segment_averages)
         
         return summary
+    
+    def get_conductive_heat_summary(self, time_index: Union[int, float]) -> Dict[str, Union[float, Dict, List]]:
+        """
+        Get summary of conductive heat transfer for all segments (NEW)
+        
+        Args:
+            time_index: Time point to analyze
+            
+        Returns:
+            Dictionary with conductive heat transfer analysis
+        """
+        try:
+            # Get conductive data from parser
+            conductive_data = self.parser.get_conductive_data(time_index)
+            
+            summary = {
+                'time_index': time_index,
+                'segments_in_contact': [],
+                'segments_cooling': [],
+                'segments_heating': [],
+                'total_conductive_heat': 0.0,
+                'segment_details': {},
+                'contact_statistics': {
+                    'total_segments_with_contact': 0,
+                    'average_contact_area': 0.0,
+                    'temperature_range': {'min': float('inf'), 'max': float('-inf')}
+                }
+            }
+            
+            contact_areas = []
+            material_temps = []
+            
+            for segment, data in conductive_data.items():
+                heat_transfer = data['heat_transfer']
+                material_temp = data['material_temperature']
+                contact_area = data['contact_area']
+                contact_resistance = data['contact_resistance']
+                
+                # Store segment details
+                summary['segment_details'][segment] = {
+                    'heat_transfer': heat_transfer,
+                    'material_temperature': material_temp,
+                    'contact_area': contact_area,
+                    'contact_resistance': contact_resistance,
+                    'has_contact': contact_area > 0 and not np.isnan(material_temp)
+                }
+                
+                # Check for contact
+                if contact_area > 0 and not np.isnan(material_temp):
+                    summary['segments_in_contact'].append(segment)
+                    contact_areas.append(contact_area)
+                    material_temps.append(material_temp)
+                    
+                    # Classify heating vs cooling
+                    if heat_transfer > 0.1:  # Heating
+                        summary['segments_heating'].append(segment)
+                    elif heat_transfer < -0.1:  # Cooling
+                        summary['segments_cooling'].append(segment)
+                
+                # Add to total
+                summary['total_conductive_heat'] += heat_transfer
+            
+            # Calculate contact statistics
+            if contact_areas:
+                summary['contact_statistics']['total_segments_with_contact'] = len(contact_areas)
+                summary['contact_statistics']['average_contact_area'] = np.mean(contact_areas)
+                summary['contact_statistics']['temperature_range']['min'] = np.min(material_temps)
+                summary['contact_statistics']['temperature_range']['max'] = np.max(material_temps)
+            else:
+                summary['contact_statistics']['temperature_range'] = {'min': 0, 'max': 0}
+            
+            return summary
+            
+        except Exception as e:
+            logger.error(f"Failed to get conductive heat summary: {str(e)}")
+            return {
+                'error': str(e),
+                'time_index': time_index,
+                'segments_in_contact': [],
+                'total_conductive_heat': 0.0
+            }

@@ -67,7 +67,12 @@ JOS3_PARAMETER_TYPES: Dict[str, str] = {
     "skin_blood_flow": "BFsk",
     "muscle_blood_flow": "BFms",
     "evaporative_heat_loss": "Esk",
-    "sweat_evaporation": "Esweat"
+    "sweat_evaporation": "Esweat",
+    # NEW: Conductive heat transfer parameters
+    "conductive_heat": "Qcond",
+    "material_temperature": "MaterialTemp",
+    "contact_area": "ContactArea",
+    "contact_resistance": "ContactResistance"
 }
 
 # Required JOS3 columns for visualization
@@ -76,28 +81,33 @@ REQUIRED_JOS3_COLUMNS: List[str] = [
     "RES"   # Total respiratory heat loss
 ]
 
-# Add required segment-specific columns
+# Add required segment-specific columns (JOS3 format: ParameterSegment not Parameter_Segment)
 for segment in BODY_SEGMENTS:
     REQUIRED_JOS3_COLUMNS.extend([
-        f"Tcr_{segment}",   # Core temperature
-        f"Tsk_{segment}",   # Skin temperature
-        f"Qcr_{segment}",   # Core heat production
-        f"Qsk_{segment}",   # Skin heat production
-        f"SHLsk_{segment}", # Sensible heat loss
-        f"LHLsk_{segment}"  # Latent heat loss
+        f"Tcr{segment}",   # Core temperature
+        f"Tsk{segment}",   # Skin temperature
+        f"Qcr{segment}",   # Core heat production
+        f"Qsk{segment}",   # Skin heat production
+        f"SHLsk{segment}", # Sensible heat loss
+        f"LHLsk{segment}"  # Latent heat loss
     ])
 
-# Optional columns that may be present for some segments
+# Optional columns that may be present for some segments (JOS3 format: ParameterSegment)
 OPTIONAL_JOS3_COLUMNS: List[str] = []
 for segment in BODY_SEGMENTS:
     OPTIONAL_JOS3_COLUMNS.extend([
-        f"Qms_{segment}",   # Muscle heat production
-        f"Qfat_{segment}",  # Fat heat production
-        f"BFcr_{segment}",  # Core blood flow
-        f"BFsk_{segment}",  # Skin blood flow
-        f"BFms_{segment}",  # Muscle blood flow
-        f"Esk_{segment}",   # Evaporative loss
-        f"Esweat_{segment}" # Sweat evaporation
+        f"Qms{segment}",   # Muscle heat production
+        f"Qfat{segment}",  # Fat heat production
+        f"BFcr{segment}",  # Core blood flow
+        f"BFsk{segment}",  # Skin blood flow
+        f"BFms{segment}",  # Muscle blood flow
+        f"Esk{segment}",   # Evaporative loss
+        f"Esweat{segment}", # Sweat evaporation
+        # NEW: Conductive heat transfer parameters
+        f"Qcond{segment}",        # Conductive heat transfer rate
+        f"MaterialTemp{segment}", # Material temperature
+        f"ContactArea{segment}",  # Contact area fraction
+        f"ContactResistance{segment}" # Contact thermal resistance
     ])
 
 

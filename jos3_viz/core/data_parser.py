@@ -203,8 +203,8 @@ class JOS3DataParser:
         
         try:
             if isinstance(time_index, int):
-                # Integer index
-                if time_index < 0 or time_index >= len(self.data):
+                # Integer index - support negative indexing
+                if time_index < -len(self.data) or time_index >= len(self.data):
                     raise IndexError(f"Time index {time_index} out of range")
                 return self.data.iloc[time_index]
             else:
@@ -221,7 +221,7 @@ class JOS3DataParser:
         
         Args:
             time_index: Time index or time value
-            mechanism: Heat transfer mechanism ('conduction', 'convection', 
+            mechanism: Heat transfer mechanism ('conduction', 'external_conduction', 'convection', 
                       'radiation', 'evaporation', 'total_loss', 'blood_flow')
         
         Returns:
@@ -230,7 +230,7 @@ class JOS3DataParser:
         Raises:
             DataParsingError: If mechanism or time index is invalid
         """
-        if mechanism not in ['conduction', 'convection', 'radiation', 'evaporation', 
+        if mechanism not in ['conduction', 'external_conduction', 'convection', 'radiation', 'evaporation', 
                            'total_loss', 'blood_flow', 'sensible', 'latent']:
             raise DataParsingError(f"Unknown heat transfer mechanism: {mechanism}")
         
@@ -241,33 +241,40 @@ class JOS3DataParser:
             try:
                 if mechanism == 'sensible':
                     # Sensible heat loss (convection + radiation)
-                    col_name = f"SHLsk_{segment}"
+                    col_name = f"SHLsk{segment}"
                 elif mechanism == 'latent':
                     # Latent heat loss (evaporation)
-                    col_name = f"LHLsk_{segment}"
+                    col_name = f"LHLsk{segment}"
                 elif mechanism == 'evaporation':
                     # Evaporative heat loss
-                    col_name = f"Esk_{segment}"
+                    col_name = f"Esk{segment}"
                     if col_name not in timestep_data:
-                        col_name = f"LHLsk_{segment}"  # Fallback
+                        col_name = f"LHLsk{segment}"  # Fallback
+                elif mechanism == 'external_conduction':
+                    # NEW: External conductive heat transfer
+                    col_name = f"Qcond{segment}"
+                    if col_name not in timestep_data:
+                        logger.debug(f"Conductive heat column {col_name} not found, using 0.0")
+                        heat_data[segment] = 0.0
+                        continue
                 elif mechanism == 'total_loss':
                     # Total heat loss from skin
-                    col_name = f"THLsk_{segment}"
+                    col_name = f"THLsk{segment}"
                     if col_name not in timestep_data:
                         # Calculate from sensible + latent
-                        shl = timestep_data.get(f"SHLsk_{segment}", 0)
-                        lhl = timestep_data.get(f"LHLsk_{segment}", 0)
+                        shl = timestep_data.get(f"SHLsk{segment}", 0)
+                        lhl = timestep_data.get(f"LHLsk{segment}", 0)
                         heat_data[segment] = shl + lhl
                         continue
                 elif mechanism == 'blood_flow':
                     # Blood flow heat transfer (simplified)
-                    col_name = f"BFsk_{segment}"
+                    col_name = f"BFsk{segment}"
                     if col_name not in timestep_data:
                         heat_data[segment] = 0.0
                         continue
                 else:
                     # For conduction, convection, radiation - use sensible heat loss as approximation
-                    col_name = f"SHLsk_{segment}"
+                    col_name = f"SHLsk{segment}"
                 
                 if col_name in timestep_data:
                     heat_data[segment] = float(timestep_data[col_name])
@@ -302,7 +309,7 @@ class JOS3DataParser:
         prefix = 'Tsk' if temp_type == 'skin' else 'Tcr'
         
         for segment in self.body_segments:
-            col_name = f"{prefix}_{segment}"
+            col_name = f"{prefix}{segment}"
             if col_name in timestep_data:
                 temp_data[segment] = float(timestep_data[col_name])
             else:
@@ -314,6 +321,45 @@ class JOS3DataParser:
     def get_body_segments(self) -> List[str]:
         """Return list of 17 body segments"""
         return self.body_segments.copy()
+    
+    def get_conductive_data(self, time_index: Union[int, float]) -> Dict[str, Dict[str, float]]:
+        """
+        Extract conductive heat transfer data for all segments (NEW)
+        
+        Args:
+            time_index: Time index or time value
+            
+        Returns:
+            Dictionary with conductive heat transfer parameters for each segment
+        """
+        timestep_data = self.get_timestep_data(time_index)
+        conductive_data = {}
+        
+        for segment in self.body_segments:
+            segment_data = {}
+            
+            # Conductive heat transfer rate
+            qcond_col = f"Qcond{segment}"
+            segment_data['heat_transfer'] = float(timestep_data.get(qcond_col, 0.0))
+            
+            # Material temperature
+            mat_temp_col = f"MaterialTemp{segment}"
+            if mat_temp_col in timestep_data:
+                segment_data['material_temperature'] = float(timestep_data[mat_temp_col])
+            else:
+                segment_data['material_temperature'] = float('nan')  # No contact
+            
+            # Contact area fraction
+            contact_area_col = f"ContactArea{segment}"
+            segment_data['contact_area'] = float(timestep_data.get(contact_area_col, 0.0))
+            
+            # Contact thermal resistance
+            contact_resistance_col = f"ContactResistance{segment}"
+            segment_data['contact_resistance'] = float(timestep_data.get(contact_resistance_col, 0.01))
+            
+            conductive_data[segment] = segment_data
+        
+        return conductive_data
     
     def get_anthropometry(self) -> Dict[str, Any]:
         """
