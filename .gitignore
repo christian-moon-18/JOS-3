@@ -10,3 +10,6 @@ test.py
 /.claude
 CLAUDE.md
 /project_resources
+/uat_simplified_outputs
+/thermal_animations
+/cli_demo_outputs
